@@ -25,6 +25,7 @@ limitations under the License.
 #include <cstdlib>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #ifndef SINGLE_THREAD
 #include <omp.h>
@@ -34,7 +35,6 @@ limitations under the License.
 #else
 #include <unistd.h>
 #endif
-#include "fftw3.h"
 
 // check if avx is supported and include the header
 #if defined(__AVX__)
@@ -55,6 +55,8 @@ union U256f {
 #include "wavelet.h"
 
 namespace fcwt {
+struct FFTPlan;
+
 class API {
 public:
   FCWT_LIBRARY_API API(Wavelet *pwav, int pthreads = 1,
@@ -83,20 +85,22 @@ public:
   Wavelet *wavelet;
 
 private:
-  void convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
+  void convolve(const FFTPlan &p, std::complex<float> *Ihat,
+                std::complex<float> *O1,
                 std::complex<float> *out, Wavelet *wav, int size, int newsize,
                 float scale, bool lastscale);
 
-  void fftbased(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
-                float *out, float *mother, int size, float scale,
+  void fftbased(const FFTPlan &p, std::complex<float> *Ihat,
+                std::complex<float> *O1, float *out, float *mother, int size,
+                float scale,
                 bool imaginary, bool doublesided);
 
   void fft_normalize(std::complex<float> *out, int size);
 
   void load_FFT_optimization_plan(int input_size) const;
 
-  void daughter_wavelet_multiplication(fftwf_complex *input,
-                                       fftwf_complex *output,
+  void daughter_wavelet_multiplication(std::complex<float> *input,
+                                       std::complex<float> *output,
                                        float const *mother, float scale,
                                        int isize, bool imaginary,
                                        bool doublesided) const;

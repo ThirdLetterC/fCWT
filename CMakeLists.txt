@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(fCWT
     VERSION 2.0
@@ -18,11 +18,12 @@ endif()
 message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
 
 option(BUILD_SHARED_LIBS "Build shared library?" ON)
-option(USE_OWN_FFTW "Use FFTW from the system or CMAKE_PREFIX_PATH instead of bundled libraries?" ON)
+option(FCWT_FETCH_KFR "Download KFR when an installed package is not found?" ON)
 option(BUILD_EXAMPLE "Build example executable when src/main.cpp is available?" OFF)
 option(BUILD_BENCHMARK "Build benchmark executable when benchmark sources are available?" OFF)
 option(BUILD_MATLAB "Build Matlab mex?" OFF)
 
+set(FCWT_KFR_GIT_TAG "7.0.1" CACHE STRING "KFR git tag used by FetchContent")
 set(FCWT_MATLAB_DIR "../MATLAB" CACHE STRING
     "Name of the build directory for the MATLAB MEX-files")
 set(FCWT_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/fCWT" CACHE STRING
@@ -31,6 +32,10 @@ set(FCWT_LIB_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}" CACHE STRING
     "Installation directory for libraries relative to CMAKE_INSTALL_PREFIX")
 set(FCWT_INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_INCLUDEDIR}" CACHE STRING
     "Installation directory for includes relative to CMAKE_INSTALL_PREFIX")
+
+if(BUILD_SHARED_LIBS)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 set(fcwt_library_target fCWT)
 
@@ -74,53 +79,31 @@ endif()
 find_package(OpenMP REQUIRED)
 target_link_libraries(${fcwt_library_target} PRIVATE OpenMP::OpenMP_CXX)
 
-if(APPLE AND NOT USE_OWN_FFTW)
-    set(_fcwt_fftw_names fftw3fmac)
-    set(_fcwt_fftw_omp_names fftw3f_ompmac)
-elseif(UNIX AND NOT APPLE AND NOT USE_OWN_FFTW)
-    set(_fcwt_fftw_names fftw3fl)
-    set(_fcwt_fftw_omp_names fftw3f_ompl)
-else()
-    set(_fcwt_fftw_names fftw3f libfftw3f libfftw3f.so.3)
-    set(_fcwt_fftw_omp_names fftw3f_omp libfftw3f_omp libfftw3f_omp.so.3)
-endif()
-
-if(USE_OWN_FFTW)
-    find_library(FFTW NAMES ${_fcwt_fftw_names} REQUIRED)
-    if(UNIX)
-        find_library(FFTW_OMP NAMES ${_fcwt_fftw_omp_names} REQUIRED)
+find_package(KFR CONFIG QUIET)
+if(NOT KFR_FOUND)
+    if(NOT FCWT_FETCH_KFR)
+        message(FATAL_ERROR "KFR was not found. Set CMAKE_PREFIX_PATH to a KFR install or enable FCWT_FETCH_KFR.")
     endif()
-else()
-    find_library(FFTW
-        NAMES ${_fcwt_fftw_names}
-        HINTS "${PROJECT_SOURCE_DIR}/libs"
-        NO_DEFAULT_PATH
-        REQUIRED)
-    if(UNIX)
-        find_library(FFTW_OMP
-            NAMES ${_fcwt_fftw_omp_names}
-            HINTS "${PROJECT_SOURCE_DIR}/libs"
-            NO_DEFAULT_PATH
-            REQUIRED)
-    endif()
+
+    include(FetchContent)
+    set(KFR_ENABLE_DFT ON CACHE BOOL "" FORCE)
+    set(KFR_ENABLE_DSP OFF CACHE BOOL "" FORCE)
+    set(KFR_ENABLE_IO OFF CACHE BOOL "" FORCE)
+    set(KFR_ENABLE_AUDIO OFF CACHE BOOL "" FORCE)
+    set(KFR_ENABLE_CAPI_BUILD OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(kfr
+        GIT_REPOSITORY https://github.com/kfrlib/kfr.git
+        GIT_TAG ${FCWT_KFR_GIT_TAG})
+    FetchContent_MakeAvailable(kfr)
 endif()
 
-message(STATUS "FFTW: ${FFTW}")
-target_link_libraries(${fcwt_library_target} PRIVATE ${FFTW})
-
-if(UNIX)
-    message(STATUS "FFTW_OMP: ${FFTW_OMP}")
-    target_link_libraries(${fcwt_library_target} PRIVATE ${FFTW_OMP})
-endif()
+target_link_libraries(${fcwt_library_target} PRIVATE kfr kfr_dft)
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(${fcwt_library_target} PRIVATE m)
 endif()
 
 install(FILES ${library_headers}
-    DESTINATION ${FCWT_INCLUDE_INSTALL_DIR})
-
-install(FILES libs/fftw3.h
     DESTINATION ${FCWT_INCLUDE_INSTALL_DIR})
 
 install(TARGETS ${fcwt_library_target}
