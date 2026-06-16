@@ -1,6 +1,7 @@
 #pragma once
 
 #include <complex>
+#include <mutex>
 #include <vector>
 
 #ifdef _WIN32
@@ -18,7 +19,11 @@
 #endif
 
 namespace fcwt {
+class API;
+
 class Wavelet {
+  friend class API;
+
 public:
   virtual ~Wavelet() = default;
 
@@ -39,5 +44,8 @@ public:
   bool doublesided = false;
 
   std::vector<float> mother;
+
+private:
+  std::mutex transform_mutex;
 };
 }; // namespace fcwt

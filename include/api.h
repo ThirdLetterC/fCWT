@@ -24,6 +24,7 @@ limitations under the License.
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <string>
 
 #ifndef SINGLE_THREAD
 #include <omp.h>

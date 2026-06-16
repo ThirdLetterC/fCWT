@@ -400,21 +400,25 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
                              FFTW_BACKWARD, FFTW_ESTIMATE);
   }
 
-  // Generate mother wavelet function
-  wavelet->generate(newsize);
+  {
+    const std::lock_guard wavelet_lock(wavelet->transform_mutex);
 
-  for (int i = 1; i < (newsize >> 1); i++) {
-    Ihat[newsize - i][0] = Ihat[i][0];
-    Ihat[newsize - i][1] = -Ihat[i][1];
-  }
+    // Generate mother wavelet function
+    wavelet->generate(newsize);
 
-  std::complex<float> *out = poutput;
+    for (int i = 1; i < (newsize >> 1); i++) {
+      Ihat[newsize - i][0] = Ihat[i][0];
+      Ihat[newsize - i][1] = -Ihat[i][1];
+    }
 
-  for (int i = 0; i < scales->nscales; i++) {
-    // FFT-base convolution in the frequency domain
-    convolve(pinv, Ihat, O1, out, wavelet, size, newsize, scales->scales[i],
-             i == (scales->nscales - 1));
-    out = out + size;
+    std::complex<float> *out = poutput;
+
+    for (int i = 0; i < scales->nscales; i++) {
+      // FFT-base convolution in the frequency domain
+      convolve(pinv, Ihat, O1, out, wavelet, size, newsize, scales->scales[i],
+               i == (scales->nscales - 1));
+      out = out + size;
+    }
   }
 
   // //Cleanup
