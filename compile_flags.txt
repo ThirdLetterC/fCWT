@@ -2,5 +2,7 @@
 -std=c++23
 -Iinclude
 -Ilibs
+-Ibuild/_deps/kfr-src/include
+-Ibuild/_deps/kfr-build
 -mavx
 -fopenmp

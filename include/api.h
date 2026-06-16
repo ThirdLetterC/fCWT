@@ -25,7 +25,6 @@ limitations under the License.
 #include <cstdlib>
 #include <mutex>
 #include <string>
-#include <vector>
 
 #ifndef SINGLE_THREAD
 #include <omp.h>
@@ -86,14 +85,12 @@ public:
 
 private:
   void convolve(const FFTPlan &p, std::complex<float> *Ihat,
-                std::complex<float> *O1,
-                std::complex<float> *out, Wavelet *wav, int size, int newsize,
-                float scale, bool lastscale);
+                std::complex<float> *O1, std::complex<float> *out, Wavelet *wav,
+                int size, int newsize, float scale, bool lastscale);
 
   void fftbased(const FFTPlan &p, std::complex<float> *Ihat,
                 std::complex<float> *O1, float *out, float *mother, int size,
-                float scale,
-                bool imaginary, bool doublesided);
+                float scale, bool imaginary, bool doublesided);
 
   void fft_normalize(std::complex<float> *out, int size);
 

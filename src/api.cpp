@@ -67,8 +67,8 @@ struct fcwt::FFTPlan {
 
   void execute_inverse(std::complex<float> *out,
                        const std::complex<float> *in) const {
-    inverse.execute(as_kfr(out), as_kfr(in),
-                    const_cast<kfr::u8 *>(temp.data()), true);
+    inverse.execute(as_kfr(out), as_kfr(in), const_cast<kfr::u8 *>(temp.data()),
+                    true);
   }
 
   kfr::dft_plan<float> inverse;
@@ -91,10 +91,12 @@ void execute_forward_real(const float *input, std::complex<float> *output,
 }
 } // namespace
 
-void fcwt::API::daughter_wavelet_multiplication(
-    std::complex<float> *input, std::complex<float> *output,
-    float const *mother,
-    const float scale, int isize, bool imaginary, bool doublesided) const {
+void fcwt::API::daughter_wavelet_multiplication(std::complex<float> *input,
+                                                std::complex<float> *output,
+                                                float const *mother,
+                                                const float scale, int isize,
+                                                bool imaginary,
+                                                bool doublesided) const {
   const auto isizef = static_cast<float>(isize);
   const float endpointf = std::min(isizef / 2.0f, ((isizef * 2.0f / scale)));
   const float step = static_cast<float>(scale) / 2.0f;
@@ -285,9 +287,9 @@ void fcwt::API::load_FFT_optimization_plan(const int input_size) const {
 
 // Convolve in time domain using a single wavelet
 void fcwt::API::convolve(const FFTPlan &p, std::complex<float> *Ihat,
-                         std::complex<float> *O1,
-                         std::complex<float> *out, Wavelet *wav, int size,
-                         int newsize, float scale, bool lastscale) {
+                         std::complex<float> *O1, std::complex<float> *out,
+                         Wavelet *wav, int size, int newsize, float scale,
+                         bool lastscale) {
 
   if (lastscale) {
     std::vector<std::complex<float>> lastscalemem(newsize);
