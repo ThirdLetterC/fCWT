@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(fCWT
     VERSION 2.0
     DESCRIPTION "Highly optimized implementation of the Continuous Wavelet Transform"
-    LANGUAGES C CXX)
+    LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
@@ -19,19 +19,10 @@ message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
 
 option(BUILD_SHARED_LIBS "Build shared library?" ON)
 option(FCWT_FETCH_KFR "Download KFR when an installed package is not found?" ON)
-option(BUILD_EXAMPLE "Build example executable when src/main.cpp is available?" OFF)
-option(BUILD_BENCHMARK "Build benchmark executable when benchmark sources are available?" OFF)
-option(BUILD_MATLAB "Build Matlab mex?" OFF)
 
 set(FCWT_KFR_GIT_TAG "7.0.1" CACHE STRING "KFR git tag used by FetchContent")
-set(FCWT_MATLAB_DIR "../MATLAB" CACHE STRING
-    "Name of the build directory for the MATLAB MEX-files")
 set(FCWT_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/fCWT" CACHE STRING
     "Installation directory for CMake package files relative to CMAKE_INSTALL_PREFIX")
-set(FCWT_LIB_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}" CACHE STRING
-    "Installation directory for libraries relative to CMAKE_INSTALL_PREFIX")
-set(FCWT_INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_INCLUDEDIR}" CACHE STRING
-    "Installation directory for includes relative to CMAKE_INSTALL_PREFIX")
 
 if(BUILD_SHARED_LIBS)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -63,7 +54,7 @@ set_target_properties(${fcwt_library_target}
 target_include_directories(${fcwt_library_target}
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${FCWT_INCLUDE_INSTALL_DIR}>)
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 if(BUILD_SHARED_LIBS)
     target_compile_definitions(${fcwt_library_target} PRIVATE FCWT_LIBRARY_DLL_BUILDING)
@@ -103,14 +94,14 @@ if(UNIX AND NOT APPLE)
 endif()
 
 install(FILES ${library_headers}
-    DESTINATION ${FCWT_INCLUDE_INSTALL_DIR})
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(TARGETS ${fcwt_library_target}
     EXPORT ${fcwt_library_target}_export
-    ARCHIVE DESTINATION ${FCWT_LIB_INSTALL_DIR}
-    LIBRARY DESTINATION ${FCWT_LIB_INSTALL_DIR}
-    RUNTIME DESTINATION ${FCWT_LIB_INSTALL_DIR}
-    INCLUDES DESTINATION ${FCWT_INCLUDE_INSTALL_DIR})
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(EXPORT ${fcwt_library_target}_export
     NAMESPACE fCWT::
