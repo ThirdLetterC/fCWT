@@ -63,7 +63,6 @@ set_target_properties(${fcwt_library_target}
 target_include_directories(${fcwt_library_target}
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/libs>
         $<INSTALL_INTERFACE:${FCWT_INCLUDE_INSTALL_DIR}>)
 
 if(BUILD_SHARED_LIBS)

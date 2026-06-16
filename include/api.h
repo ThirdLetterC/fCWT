@@ -26,9 +26,6 @@ limitations under the License.
 #include <mutex>
 #include <string>
 
-#ifndef SINGLE_THREAD
-#include <omp.h>
-#endif
 #ifdef _WIN32
 #include <windows.h>
 #else
