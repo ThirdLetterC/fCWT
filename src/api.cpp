@@ -369,9 +369,9 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
       fftwf_init_threads();
       fftwf_plan_with_nthreads(threads);
 #endif
-      p = fftwf_plan_dft_1d(newsize,
-                            reinterpret_cast<fftwf_complex *>(complex_input.data()),
-                            Ihat, FFTW_FORWARD, FFTW_ESTIMATE);
+      p = fftwf_plan_dft_1d(
+          newsize, reinterpret_cast<fftwf_complex *>(complex_input.data()),
+          Ihat, FFTW_FORWARD, FFTW_ESTIMATE);
     }
   } else {
     real_input.resize(newsize);
@@ -382,7 +382,8 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
       fftwf_init_threads();
       fftwf_plan_with_nthreads(threads);
 #endif
-      p = fftwf_plan_dft_r2c_1d(newsize, real_input.data(), Ihat, FFTW_ESTIMATE);
+      p = fftwf_plan_dft_r2c_1d(newsize, real_input.data(), Ihat,
+                                FFTW_ESTIMATE);
     }
   }
 
