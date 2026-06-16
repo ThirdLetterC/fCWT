@@ -43,6 +43,11 @@ limitations under the License.
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <mutex>
+
+namespace {
+std::mutex fftw_plan_mutex;
+}
 
 void fcwt::API::daughter_wavelet_multiplication(
     fftwf_complex *input, fftwf_complex *output, float const *mother,
@@ -183,26 +188,27 @@ void fcwt::API::create_FFT_optimization_plan(const int maxsize,
     fftwf_complex *O1 = fftwf_alloc_complex(n);
     fftwf_complex *out = fftwf_alloc_complex(n);
 
-#ifndef SINGLE_THREAD
-    omp_set_num_threads(threads);
-    std::cout << "Threads:" << omp_get_max_threads() << "\n";
-
-    fftwf_init_threads();
-    fftwf_plan_with_nthreads(omp_get_max_threads());
-#endif
-
     char file_for[50];
     sprintf(file_for, "n%d_t%d.wis", n, threads);
 
     std::cout << "Calculating optimal scheme for forward FFT with N:" << n
               << "\n";
-    fftwf_plan p_for = fftwf_plan_dft_r2c_1d(n, dat, O1, flags);
+    fftwf_plan p_for;
+    fftwf_plan p_back;
+    {
+      const std::lock_guard lock(fftw_plan_mutex);
+#ifndef SINGLE_THREAD
+      fftwf_init_threads();
+      fftwf_plan_with_nthreads(threads);
+#endif
+      p_for = fftwf_plan_dft_r2c_1d(n, dat, O1, flags);
 
-    std::cout << "Calculating optimal scheme for backward FFT with N:" << n
-              << "\n";
-    fftwf_plan p_back = fftwf_plan_dft_1d(n, O1, out, FFTW_BACKWARD, flags);
+      std::cout << "Calculating optimal scheme for backward FFT with N:" << n
+                << "\n";
+      p_back = fftwf_plan_dft_1d(n, O1, out, FFTW_BACKWARD, flags);
 
-    fftwf_export_wisdom_to_filename(file_for);
+      fftwf_export_wisdom_to_filename(file_for);
+    }
 
     fftwf_destroy_plan(p_for);
     fftwf_destroy_plan(p_back);
@@ -237,8 +243,8 @@ void fcwt::API::create_FFT_optimization_plan(int maxsize,
   create_FFT_optimization_plan(maxsize, flag);
 }
 
-void fcwt::API::load_FFT_optimization_plan() {
-  const int nt = find2power(size);
+void fcwt::API::load_FFT_optimization_plan(const int input_size) const {
+  const int nt = find2power(input_size);
   const int newsize = 1 << nt;
 
   if (use_optimalization_schemes) {
@@ -251,7 +257,13 @@ void fcwt::API::load_FFT_optimization_plan() {
     char file_for[50];
     sprintf(file_for, "n%d_t%d.wis", newsize, threads);
 
-    if (!fftwf_import_wisdom_from_filename(file_for)) {
+    bool wisdom_loaded = false;
+    {
+      const std::lock_guard lock(fftw_plan_mutex);
+      wisdom_loaded = fftwf_import_wisdom_from_filename(file_for);
+    }
+
+    if (!wisdom_loaded) {
       std::cout
           << "WARNING: Optimization scheme '" << file_for
           << "' was not found, fallback to calculation without optimization."
@@ -266,13 +278,7 @@ void fcwt::API::convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
                          int newsize, float scale, bool lastscale) {
 
   if (lastscale) {
-#ifdef _WIN32
-    fftwf_complex *lastscalemem =
-        (fftwf_complex *)_aligned_malloc(newsize * sizeof(fftwf_complex), 32);
-#else
-    fftwf_complex *lastscalemem =
-        (fftwf_complex *)aligned_alloc(32, newsize * sizeof(fftwf_complex));
-#endif
+    fftwf_complex *lastscalemem = fftwf_alloc_complex(newsize);
     memset(lastscalemem, 0, sizeof(fftwf_complex) * newsize);
 
     fftbased(p, Ihat, O1, (float *)lastscalemem, wav->mother.data(), newsize,
@@ -281,11 +287,7 @@ void fcwt::API::convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
       fft_normalize((std::complex<float> *)lastscalemem, newsize);
     memcpy(out, (std::complex<float> *)lastscalemem,
            sizeof(std::complex<float>) * size);
-#ifdef _WIN32
-    _aligned_free(lastscalemem);
-#else
-    free(lastscalemem);
-#endif
+    fftwf_free(lastscalemem);
   } else {
     if (!out) {
       std::cout << "OUT NOT A POINTER" << std::endl;
@@ -332,42 +334,28 @@ void fcwt::API::fft_normalize(std::complex<float> *out, int size) {
 
 void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
                     Scales *scales, bool complexinput) {
+  const std::lock_guard lock(cwt_mutex);
 
   fftwf_complex *Ihat, *O1;
-  size = psize;
+  const int size = psize;
 
   // Find nearest power of 2
   const int nt = find2power(size);
   const int newsize = 1 << nt;
 
-// Initialize intermediate result
-#ifdef _WIN32
-  Ihat = (fftwf_complex *)_aligned_malloc(newsize * sizeof(fftwf_complex), 32);
-  O1 = (fftwf_complex *)_aligned_malloc(newsize * sizeof(fftwf_complex), 32);
-#else
-  Ihat = (fftwf_complex *)aligned_alloc(32, newsize * sizeof(fftwf_complex));
-  O1 = (fftwf_complex *)aligned_alloc(32, newsize * sizeof(fftwf_complex));
-#endif
+  // Initialize intermediate result
+  Ihat = fftwf_alloc_complex(newsize);
+  O1 = fftwf_alloc_complex(newsize);
 
   // Copy input to new input buffer
   memset(Ihat, 0, sizeof(fftwf_complex) * newsize);
   memset(O1, 0, sizeof(fftwf_complex) * newsize);
 
-#ifndef SINGLE_THREAD
-  // Initialize FFTW plans
-  omp_set_num_threads(threads);
-
-  // Initialize FFTW plans
-  fftwf_init_threads();
-
-  fftwf_plan_with_nthreads(threads);
-#endif
-
   fftwf_plan pinv;
   fftwf_plan p;
 
   // //Load optimization schemes if necessary
-  load_FFT_optimization_plan();
+  load_FFT_optimization_plan(size);
 
   // //Perform forward FFT on input signal
   std::vector<float> real_input;
@@ -375,20 +363,41 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
   if (complexinput) {
     complex_input.resize(newsize);
     memcpy(complex_input.data(), pinput, sizeof(std::complex<float>) * size);
-    p = fftwf_plan_dft_1d(
-        newsize, reinterpret_cast<fftwf_complex *>(complex_input.data()), Ihat,
-        FFTW_FORWARD, FFTW_ESTIMATE);
+    {
+      const std::lock_guard lock(fftw_plan_mutex);
+#ifndef SINGLE_THREAD
+      fftwf_init_threads();
+      fftwf_plan_with_nthreads(threads);
+#endif
+      p = fftwf_plan_dft_1d(newsize,
+                            reinterpret_cast<fftwf_complex *>(complex_input.data()),
+                            Ihat, FFTW_FORWARD, FFTW_ESTIMATE);
+    }
   } else {
     real_input.resize(newsize);
     memcpy(real_input.data(), pinput, sizeof(float) * size);
-    p = fftwf_plan_dft_r2c_1d(newsize, real_input.data(), Ihat, FFTW_ESTIMATE);
+    {
+      const std::lock_guard lock(fftw_plan_mutex);
+#ifndef SINGLE_THREAD
+      fftwf_init_threads();
+      fftwf_plan_with_nthreads(threads);
+#endif
+      p = fftwf_plan_dft_r2c_1d(newsize, real_input.data(), Ihat, FFTW_ESTIMATE);
+    }
   }
 
   fftwf_execute(p);
   fftwf_destroy_plan(p);
 
-  pinv = fftwf_plan_dft_1d(newsize, O1, (fftwf_complex *)poutput, FFTW_BACKWARD,
-                           FFTW_ESTIMATE);
+  {
+    const std::lock_guard lock(fftw_plan_mutex);
+#ifndef SINGLE_THREAD
+    fftwf_init_threads();
+    fftwf_plan_with_nthreads(threads);
+#endif
+    pinv = fftwf_plan_dft_1d(newsize, O1, (fftwf_complex *)poutput,
+                             FFTW_BACKWARD, FFTW_ESTIMATE);
+  }
 
   // Generate mother wavelet function
   wavelet->generate(newsize);
@@ -409,13 +418,8 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
 
   // //Cleanup
   fftwf_destroy_plan(pinv);
-#ifdef _WIN32
-  _aligned_free(Ihat);
-  _aligned_free(O1);
-#else
-  free(Ihat);
-  free(O1);
-#endif
+  fftwf_free(Ihat);
+  fftwf_free(O1);
 }
 
 void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,

@@ -23,6 +23,7 @@ limitations under the License.
 #include <complex>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
 
 #ifndef SINGLE_THREAD
 #include <omp.h>
@@ -58,7 +59,7 @@ public:
   FCWT_LIBRARY_API API(Wavelet *pwav, int pthreads = 1,
                        bool puse_optimalization_schemes = false,
                        bool puse_normalization = false)
-      : wavelet(pwav), threads(pthreads),
+      : wavelet(pwav), threads(pthreads > 0 ? pthreads : 1),
         use_optimalization_schemes(puse_optimalization_schemes),
         use_normalization(puse_normalization) {};
 
@@ -91,7 +92,7 @@ private:
 
   void fft_normalize(std::complex<float> *out, int size);
 
-  void load_FFT_optimization_plan();
+  void load_FFT_optimization_plan(int input_size) const;
 
   void daughter_wavelet_multiplication(fftwf_complex *input,
                                        fftwf_complex *output,
@@ -110,7 +111,7 @@ private:
   }
 
   int threads;
-  int size = 0;
+  std::mutex cwt_mutex;
   bool use_optimalization_schemes;
   bool use_normalization;
 };
