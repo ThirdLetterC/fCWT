@@ -179,7 +179,7 @@ void fcwt::API::create_FFT_optimization_plan(const int maxsize,
   for (int i = 11; i <= nt; i++) {
     int n = 1 << i;
 
-    float *dat = (float *)malloc(sizeof(float) * n);
+    float *dat = (float *)fftwf_malloc(sizeof(float) * n);
     fftwf_complex *O1 = fftwf_alloc_complex(n);
     fftwf_complex *out = fftwf_alloc_complex(n);
 
@@ -208,7 +208,7 @@ void fcwt::API::create_FFT_optimization_plan(const int maxsize,
     fftwf_destroy_plan(p_back);
     fftwf_free(O1);
     fftwf_free(out);
-    free(dat);
+    fftwf_free(dat);
 
     std::cout << "Optimization schemes for N: " << n
               << " have been calculated. Next time you use fCWT it will "
