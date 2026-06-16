@@ -7,29 +7,31 @@
 #include <complex>
 #include <vector>
 
-#include "wavelet.h"
 #include "api.h"
+#include "wavelet.h"
 
 namespace fcwt {
-    class Morlet: public Wavelet {
-        public:
-        FCWT_LIBRARY_API explicit Morlet(float bandwidth); // frequency domain
+class Morlet : public Wavelet {
+public:
+  FCWT_LIBRARY_API explicit Morlet(float bandwidth); // frequency domain
 
-        ~Morlet() override = default;
+  ~Morlet() override = default;
 
-        // Frequency domain
-        void generate(int size) noexcept override;
+  // Frequency domain
+  void generate(int size) noexcept override;
 
-        // Time domain
-        void generate(std::vector<std::complex<float>> &pwav, int size, float scale) noexcept override;
+  // Time domain
+  void generate(std::vector<std::complex<float>> &pwav, int size,
+                float scale) noexcept override;
 
-        [[nodiscard]] int getSupport(float scale) const noexcept override;
+  [[nodiscard]] int getSupport(float scale) const noexcept override;
 
-        void getWavelet(float scale, std::vector<std::complex<float>>& pwav, int pn) noexcept override;
+  void getWavelet(float scale, std::vector<std::complex<float>> &pwav,
+                  int pn) noexcept override;
 
-        float fb;
+  float fb;
 
-        private:
-        float ifb, fb2;
-    };
-}
+private:
+  float ifb, fb2;
+};
+} // namespace fcwt

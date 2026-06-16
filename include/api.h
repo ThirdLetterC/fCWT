@@ -19,90 +19,105 @@ limitations under the License.
 
 #pragma once
 
-#include <cstdio>
-#include <cstdlib>
-#include <vector>
 #include <chrono>
 #include <cmath>
 #include <complex>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
 
 #include <iostream>
 
 #ifndef SINGLE_THREAD
-    #include <omp.h>
+#include <omp.h>
 #endif
 #ifdef _WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #include <unistd.h>
+#include <unistd.h>
 #endif
 #include "fftw3.h"
 #include <memory>
-//check if avx is supported and include the header
+// check if avx is supported and include the header
 #if defined(__AVX__)
-    #include <immintrin.h>
-    #define AVX
-    union U256f {
-        __m256 v;
-        float a[8];
-    };
+#include <immintrin.h>
+#define AVX
+union U256f {
+  __m256 v;
+  float a[8];
+};
 #endif
 
-#define PI                    3.14159265358979323846264338327950288419716939937510582097494459072381640628620899862803482534211706798f
-#define sqrt2PI               2.50662827463100050241576528f
-#define IPI4                  0.75112554446f
+#define PI                                                                     \
+  3.14159265358979323846264338327950288419716939937510582097494459072381640628620899862803482534211706798f
+#define sqrt2PI 2.50662827463100050241576528f
+#define IPI4 0.75112554446f
 
-
-#include "wavelet.h"
 #include "scales.h"
+#include "wavelet.h"
 
 namespace fcwt {
-    class API {
-        public:
-        FCWT_LIBRARY_API API(Wavelet *pwav, int pthreads=1, bool puse_optimalization_schemes=false, bool puse_normalization=false):
-            wavelet(pwav),
-            threads(pthreads),
-            use_optimalization_schemes(puse_optimalization_schemes),
-            use_normalization(puse_normalization) {};
+class API {
+public:
+  FCWT_LIBRARY_API API(Wavelet *pwav, int pthreads = 1,
+                       bool puse_optimalization_schemes = false,
+                       bool puse_normalization = false)
+      : wavelet(pwav), threads(pthreads),
+        use_optimalization_schemes(puse_optimalization_schemes),
+        use_normalization(puse_normalization) {};
 
-        void FCWT_LIBRARY_API create_FFT_optimization_plan(int maxsize, int flags) const;
-        void FCWT_LIBRARY_API create_FFT_optimization_plan(int pmaxsize, std::string poptimizationflags);
-        void FCWT_LIBRARY_API cwt(float *pinput, int psize, std::complex<float>* poutput, Scales *scales);
-        void FCWT_LIBRARY_API cwt(std::complex<float> *pinput, int psize, std::complex<float>* poutput, Scales *scales);
-        void FCWT_LIBRARY_API cwt(float *pinput, int psize, Scales *scales, std::complex<float>* poutput, int pn1, int pn2);
-        void FCWT_LIBRARY_API cwt(float *pinput, int psize, std::complex<float>* poutput, Scales *scales, bool complexinput);
-        void FCWT_LIBRARY_API cwt(std::complex<float> *pinput, int psize, Scales* scales, std::complex<float>* poutput, int pn1, int pn2);
-        Wavelet *wavelet;
+  void FCWT_LIBRARY_API create_FFT_optimization_plan(int maxsize,
+                                                     int flags) const;
+  void FCWT_LIBRARY_API
+  create_FFT_optimization_plan(int pmaxsize, std::string poptimizationflags);
+  void FCWT_LIBRARY_API cwt(float *pinput, int psize,
+                            std::complex<float> *poutput, Scales *scales);
+  void FCWT_LIBRARY_API cwt(std::complex<float> *pinput, int psize,
+                            std::complex<float> *poutput, Scales *scales);
+  void FCWT_LIBRARY_API cwt(float *pinput, int psize, Scales *scales,
+                            std::complex<float> *poutput, int pn1, int pn2);
+  void FCWT_LIBRARY_API cwt(float *pinput, int psize,
+                            std::complex<float> *poutput, Scales *scales,
+                            bool complexinput);
+  void FCWT_LIBRARY_API cwt(std::complex<float> *pinput, int psize,
+                            Scales *scales, std::complex<float> *poutput,
+                            int pn1, int pn2);
+  Wavelet *wavelet;
 
-        private:
+private:
+  void convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
+                std::complex<float> *out, Wavelet *wav, int size, int newsize,
+                float scale, bool lastscale);
 
-        void convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1, std::complex<float> *out, Wavelet *wav, int size, int newsize, float scale, bool lastscale);
+  void fftbased(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
+                float *out, float *mother, int size, float scale,
+                bool imaginary, bool doublesided);
 
-        void fftbased(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1, float *out, float* mother, int size, float scale, bool imaginary, bool doublesided);
+  void fft_normalize(std::complex<float> *out, int size);
 
-        void fft_normalize(std::complex<float>* out, int size);
+  void load_FFT_optimization_plan();
 
-        void load_FFT_optimization_plan();
+  void daughter_wavelet_multiplication(fftwf_complex *input,
+                                       fftwf_complex *output,
+                                       float const *mother, float scale,
+                                       int isize, bool imaginary,
+                                       bool doublesided) const;
 
-        void daughter_wavelet_multiplication(fftwf_complex *input, fftwf_complex *output, float const *mother,
-                                             float scale, int isize, bool imaginary, bool doublesided) const;
+  static int find2power(const int n) {
+    int m = 0;
+    int m2 = 1 << m; /* 2 to the power of m */
+    while (m2 - n < 0) {
+      m++;
+      m2 <<= 1; /* m2 = m2*2 */
+    }
+    return (m);
+  }
 
-        static int find2power(const int n)
-        {
-            int m = 0;
-            int m2 = 1 << m; /* 2 to the power of m */
-            while (m2 - n < 0) {
-                m++;
-                m2 <<= 1; /* m2 = m2*2 */
-            }
-            return(m);
-        }
+  int threads;
+  int size;
+  float fs, f0, f1, fn;
+  bool use_optimalization_schemes;
+  bool use_normalization;
+};
 
-        int threads;
-        int size;
-        float fs, f0, f1, fn;
-        bool use_optimalization_schemes;
-        bool use_normalization;
-    };
-
-}
+} // namespace fcwt

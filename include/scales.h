@@ -3,33 +3,31 @@
 #include "wavelet.h"
 
 namespace fcwt {
-    enum class ScaleType {
-        FCWT_LINSCALES,
-        FCWT_LOGSCALES,
-        FCWT_LINFREQS
-    };
+enum class ScaleType { FCWT_LINSCALES, FCWT_LOGSCALES, FCWT_LINFREQS };
 
-    class Scales {
-        public:
-        FCWT_LIBRARY_API Scales(ScaleType st, int fs, float f0, float f1, int fn);
+class Scales {
+public:
+  FCWT_LIBRARY_API Scales(ScaleType st, int fs, float f0, float f1, int fn);
 
-        void FCWT_LIBRARY_API getScales(const std::vector<float>& pfreqs) noexcept;
+  void FCWT_LIBRARY_API getScales(const std::vector<float> &pfreqs) noexcept;
 
-        void FCWT_LIBRARY_API getFrequencies(std::vector<float>& pfreqs) const noexcept;
+  void FCWT_LIBRARY_API
+  getFrequencies(std::vector<float> &pfreqs) const noexcept;
 
-        std::vector<float> scales;
+  std::vector<float> scales;
 
-        int fs;
+  int fs;
 
-        int nscales;
+  int nscales;
 
-        private:
-        static bool check_nyquist_satisfied(float f, int fs) noexcept;
+private:
+  static bool check_nyquist_satisfied(float f, int fs) noexcept;
 
-        void calculate_logscale_array(float base, int fs, float f0, float f1, int fn) noexcept;
+  void calculate_logscale_array(float base, int fs, float f0, float f1,
+                                int fn) noexcept;
 
-        void calculate_linscale_array(int fs, float f0, float f1, int fn) noexcept;
+  void calculate_linscale_array(int fs, float f0, float f1, int fn) noexcept;
 
-        void calculate_linfreq_array(int fs, float f0, float f1, int fn) noexcept;
-    };
-} // fcwt
+  void calculate_linfreq_array(int fs, float f0, float f1, int fn) noexcept;
+};
+} // namespace fcwt
