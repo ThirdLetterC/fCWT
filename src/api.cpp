@@ -101,102 +101,92 @@ void fcwt::API::daughter_wavelet_multiplication(std::complex<float> *input,
   const float endpointf = std::min(isizef / 2.0f, ((isizef * 2.0f / scale)));
   const float step = static_cast<float>(scale) / 2.0f;
   int endpoint = static_cast<int>(endpointf);
-  const int endpoint4 = endpoint >> 2;
+  const int athreads = std::min(threads, std::max(1, endpoint / 16));
+  const float maximum = isizef - 1;
+  const int s1 = isize - 1;
 
 #ifdef AVX
-  // has avx instructions
-  __m256 *O8 = (__m256 *)output;
-  __m256 *I8 = (__m256 *)input;
-  __m256 step4 = _mm256_set1_ps(step);
-  __m256 offset = _mm256_set_ps(3, 3, 2, 2, 1, 1, 0, 0);
-  __m256 maximum = _mm256_set1_ps(isizef - 1);
-
-  int athreads = std::min(threads, std::max(1, endpoint4 / 16));
-  int batchsize = (endpoint4 / athreads);
-  int s4 = (isize >> 2) - 1;
+  const __m256 step8 = _mm256_set1_ps(step);
+  const __m256 offset = _mm256_set_ps(3, 3, 2, 2, 1, 1, 0, 0);
+  const __m256 maximum8 = _mm256_set1_ps(maximum);
+  const float imaginary_sign = static_cast<float>(1 - 2 * imaginary);
 
 #ifndef SINGLE_THREAD
 #pragma omp parallel for
 #endif
   for (int i = 0; i < athreads; i++) {
-    int start = batchsize * i;
-    int end = batchsize * (i + 1);
+    const int start = (endpoint * i) / athreads;
+    const int end = (endpoint * (i + 1)) / athreads;
 
-    for (int q4 = start; q4 < end; q4++) {
-      auto q = static_cast<float>(q4 * 4);
+    int q1 = start;
+    for (; q1 + 3 < end; q1 += 4) {
+      const auto q = static_cast<float>(q1);
+      const __m256 qq = _mm256_set1_ps(q);
+      const U256f tmp = {_mm256_min_ps(
+          maximum8, _mm256_mul_ps(step8, _mm256_add_ps(qq, offset)))};
 
-      __m256 qq = _mm256_set1_ps(q);
+      const float m0 = mother[static_cast<int>(tmp.a[0])];
+      const float m1 = mother[static_cast<int>(tmp.a[2])];
+      const float m2 = mother[static_cast<int>(tmp.a[4])];
+      const float m3 = mother[static_cast<int>(tmp.a[6])];
+      const __m256 wav =
+          _mm256_set_ps(m3 * imaginary_sign, m3, m2 * imaginary_sign, m2,
+                        m1 * imaginary_sign, m1, m0 * imaginary_sign, m0);
 
-      U256f tmp = {_mm256_min_ps(
-          maximum, _mm256_mul_ps(step4, _mm256_add_ps(qq, offset)))};
-      // U256f tmp = {_mm256_mul_ps(step4,_mm256_add_ps(qq,offset))};
+      const auto *in = reinterpret_cast<const float *>(input + q1);
+      auto *out = reinterpret_cast<float *>(output + q1);
+      _mm256_storeu_ps(out, _mm256_mul_ps(_mm256_loadu_ps(in), wav));
+    }
 
-      __m256 wav = _mm256_set_ps(mother[static_cast<int>(tmp.a[7])] *
-                                     static_cast<float>(1 - 2 * imaginary),
-                                 mother[static_cast<int>(tmp.a[6])],
-                                 mother[static_cast<int>(tmp.a[5])] *
-                                     static_cast<float>(1 - 2 * imaginary),
-                                 mother[static_cast<int>(tmp.a[4])],
-                                 mother[static_cast<int>(tmp.a[3])] *
-                                     static_cast<float>(1 - 2 * imaginary),
-                                 mother[static_cast<int>(tmp.a[2])],
-                                 mother[static_cast<int>(tmp.a[1])] *
-                                     static_cast<float>(1 - 2 * imaginary),
-                                 mother[static_cast<int>(tmp.a[0])]);
-
-      if (imaginary) {
-        __m256 tmp2 = _mm256_mul_ps(I8[q4], wav);
-        O8[q4] = _mm256_shuffle_ps(tmp2, tmp2, 177);
-      } else {
-        O8[q4] = _mm256_mul_ps(I8[q4], wav);
-      }
+    for (; q1 < end; q1++) {
+      const float tmp = std::min(maximum, step * static_cast<float>(q1));
+      output[q1].real(input[q1].real() * mother[static_cast<int>(tmp)]);
+      output[q1].imag(input[q1].imag() * mother[static_cast<int>(tmp)] *
+                      imaginary_sign);
     }
 
     if (doublesided) {
-      for (int q4 = start; q4 < end; q4++) {
-        auto q = static_cast<float>(q4 * 4);
+      q1 = start;
+      for (; q1 + 3 < end; q1 += 4) {
+        const auto q = static_cast<float>(q1);
+        const __m256 qq = _mm256_set1_ps(q);
+        const U256f tmp = {_mm256_min_ps(
+            maximum8, _mm256_mul_ps(step8, _mm256_add_ps(qq, offset)))};
 
-        __m256 qq = _mm256_set1_ps(q);
-        U256f tmp = {_mm256_mul_ps(step4, _mm256_add_ps(qq, offset))};
+        const float m0 = mother[static_cast<int>(tmp.a[0])];
+        const float m1 = mother[static_cast<int>(tmp.a[2])];
+        const float m2 = mother[static_cast<int>(tmp.a[4])];
+        const float m3 = mother[static_cast<int>(tmp.a[6])];
+        const __m256 wav =
+            _mm256_set_ps(m0, m0 * imaginary_sign, m1, m1 * imaginary_sign, m2,
+                          m2 * imaginary_sign, m3, m3 * imaginary_sign);
 
-        __m256 wav = _mm256_set_ps(mother[static_cast<int>(tmp.a[0])] *
-                                       static_cast<float>(1 - 2 * imaginary),
-                                   mother[static_cast<int>(tmp.a[1])],
-                                   mother[static_cast<int>(tmp.a[2])] *
-                                       static_cast<float>(1 - 2 * imaginary),
-                                   mother[static_cast<int>(tmp.a[3])],
-                                   mother[static_cast<int>(tmp.a[4])] *
-                                       static_cast<float>(1 - 2 * imaginary),
-                                   mother[static_cast<int>(tmp.a[5])],
-                                   mother[static_cast<int>(tmp.a[6])] *
-                                       static_cast<float>(1 - 2 * imaginary),
-                                   mother[static_cast<int>(tmp.a[7])]);
+        const int dest = s1 - q1 - 3;
+        const auto *in = reinterpret_cast<const float *>(input + dest);
+        auto *out = reinterpret_cast<float *>(output + dest);
+        _mm256_storeu_ps(out, _mm256_mul_ps(_mm256_loadu_ps(in), wav));
+      }
 
-        if (imaginary) {
-          __m256 tmp2 = _mm256_mul_ps(I8[s4 - q4], wav);
-          O8[s4 - q4] = _mm256_shuffle_ps(tmp2, tmp2, 177);
-        } else {
-          O8[s4 - q4] = _mm256_mul_ps(I8[s4 - q4], wav);
-        }
+      for (; q1 < end; q1++) {
+        const float tmp = std::min(maximum, step * static_cast<float>(q1));
+        output[s1 - q1].real(input[s1 - q1].real() *
+                             mother[static_cast<int>(tmp)] * imaginary_sign);
+        output[s1 - q1].imag(input[s1 - q1].imag() *
+                             mother[static_cast<int>(tmp)]);
       }
     }
   }
 #else
-  int athreads = min(threads, max(1, endpoint / 16));
-  int batchsize = (endpoint / athreads);
-  float maximum = isizef - 1;
-  int s1 = isize - 1;
-
 #ifndef SINGLE_THREAD
 #pragma omp parallel for
 #endif
   for (int i = 0; i < athreads; i++) {
-    int start = batchsize * i;
-    int end = batchsize * (i + 1);
+    int start = (endpoint * i) / athreads;
+    int end = (endpoint * (i + 1)) / athreads;
 
     for (int q1 = start; q1 < end; q1++) {
       float q = (float)q1;
-      float tmp = min(maximum, step * q);
+      float tmp = std::min(maximum, step * q);
 
       output[q1].real(input[q1].real() * mother[(int)tmp]);
       output[q1].imag(input[q1].imag() * mother[(int)tmp] *
@@ -206,7 +196,7 @@ void fcwt::API::daughter_wavelet_multiplication(std::complex<float> *input,
     if (doublesided) {
       for (int q1 = start; q1 < end; q1++) {
         float q = (float)q1;
-        float tmp = min(maximum, step * q);
+        float tmp = std::min(maximum, step * q);
 
         output[s1 - q1].real(input[s1 - q1].real() * mother[(int)tmp] *
                              (1 - 2 * imaginary));
