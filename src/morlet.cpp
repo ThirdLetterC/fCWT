@@ -1,4 +1,5 @@
 #include "morlet.h"
+#include "api.h"
 
 fcwt::Morlet::Morlet(const float bandwidth) : fb(bandwidth) {
   fb2 = 2.0f * fb * fb;

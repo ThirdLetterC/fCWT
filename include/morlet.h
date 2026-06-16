@@ -7,7 +7,6 @@
 #include <complex>
 #include <vector>
 
-#include "api.h"
 #include "wavelet.h"
 
 namespace fcwt {

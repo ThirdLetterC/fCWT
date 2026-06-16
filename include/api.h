@@ -19,14 +19,10 @@ limitations under the License.
 
 #pragma once
 
-#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
-
-#include <iostream>
 
 #ifndef SINGLE_THREAD
 #include <omp.h>
@@ -37,7 +33,7 @@ limitations under the License.
 #include <unistd.h>
 #endif
 #include "fftw3.h"
-#include <memory>
+
 // check if avx is supported and include the header
 #if defined(__AVX__)
 #include <immintrin.h>

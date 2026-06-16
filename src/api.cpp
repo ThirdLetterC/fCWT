@@ -41,6 +41,8 @@ limitations under the License.
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <iostream>
+#include <memory>
 
 void fcwt::API::daughter_wavelet_multiplication(
     fftwf_complex *input, fftwf_complex *output, float const *mother,
