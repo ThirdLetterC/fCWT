@@ -9,10 +9,10 @@ fcwt::Scales::Scales(const ScaleType st, const int fs, const float f0,
   scales.resize(fn);
   switch (st) {
   case ScaleType::FCWT_LINSCALES:
-    calculate_logscale_array(2.0f, fs, f0, f1, fn);
+    calculate_linscale_array(fs, f0, f1, fn);
     break;
   case ScaleType::FCWT_LOGSCALES:
-    calculate_linscale_array(fs, f0, f1, fn);
+    calculate_logscale_array(2.0f, fs, f0, f1, fn);
     break;
   default:
     calculate_linfreq_array(fs, f0, f1, fn);
@@ -34,6 +34,7 @@ void fcwt::Scales::getScales(const std::vector<float> &pfreqs) noexcept {
 };
 
 void fcwt::Scales::getFrequencies(std::vector<float> &pfreqs) const noexcept {
+  pfreqs.resize(scales.size());
   std::ranges::transform(scales, pfreqs.begin(), [&](const float scale) {
     return static_cast<float>(fs) / scale;
   });

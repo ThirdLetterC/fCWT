@@ -64,8 +64,8 @@ public:
 
   void FCWT_LIBRARY_API create_FFT_optimization_plan(int maxsize,
                                                      int flags) const;
-  void FCWT_LIBRARY_API
-  create_FFT_optimization_plan(int pmaxsize, std::string poptimizationflags);
+  void FCWT_LIBRARY_API create_FFT_optimization_plan(
+      int pmaxsize, const std::string &poptimizationflags);
   void FCWT_LIBRARY_API cwt(float *pinput, int psize,
                             std::complex<float> *poutput, Scales *scales);
   void FCWT_LIBRARY_API cwt(std::complex<float> *pinput, int psize,
@@ -110,8 +110,7 @@ private:
   }
 
   int threads;
-  int size;
-  float fs, f0, f1, fn;
+  int size = 0;
   bool use_optimalization_schemes;
   bool use_normalization;
 };

@@ -30,7 +30,7 @@ void fcwt::Morlet::generate(std::vector<std::complex<float>> &pwav,
                             const int size, const float scale) noexcept {
   // Time domain because we know size from scale
   width = getSupport(scale);
-  std::vector<float> res(width * 2 + 1, 0);
+  pwav.resize(width * 2 + 1);
 
   const float norm = static_cast<float>(size) * ifb * IPI4;
 

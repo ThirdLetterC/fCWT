@@ -204,8 +204,11 @@ void fcwt::API::create_FFT_optimization_plan(const int maxsize,
 
     fftwf_export_wisdom_to_filename(file_for);
 
+    fftwf_destroy_plan(p_for);
+    fftwf_destroy_plan(p_back);
     fftwf_free(O1);
     fftwf_free(out);
+    free(dat);
 
     std::cout << "Optimization schemes for N: " << n
               << " have been calculated. Next time you use fCWT it will "
@@ -215,7 +218,8 @@ void fcwt::API::create_FFT_optimization_plan(const int maxsize,
   }
 }
 
-void fcwt::API::create_FFT_optimization_plan(int maxsize, std::string flags) {
+void fcwt::API::create_FFT_optimization_plan(int maxsize,
+                                             const std::string &flags) {
   int flag = 0;
 
   if (flags == "FFTW_MEASURE") {
@@ -277,6 +281,11 @@ void fcwt::API::convolve(fftwf_plan p, fftwf_complex *Ihat, fftwf_complex *O1,
       fft_normalize((std::complex<float> *)lastscalemem, newsize);
     memcpy(out, (std::complex<float> *)lastscalemem,
            sizeof(std::complex<float>) * size);
+#ifdef _WIN32
+    _aligned_free(lastscalemem);
+#else
+    free(lastscalemem);
+#endif
   } else {
     if (!out) {
       std::cout << "OUT NOT A POINTER" << std::endl;
@@ -361,22 +370,22 @@ void fcwt::API::cwt(float *pinput, int psize, std::complex<float> *poutput,
   load_FFT_optimization_plan();
 
   // //Perform forward FFT on input signal
-  float *input;
+  std::vector<float> real_input;
+  std::vector<std::complex<float>> complex_input;
   if (complexinput) {
-    input = (float *)calloc(newsize, sizeof(std::complex<float>));
-    memcpy(input, pinput, sizeof(std::complex<float>) * size);
-    p = fftwf_plan_dft_1d(newsize, (fftwf_complex *)input, Ihat, FFTW_FORWARD,
-                          FFTW_ESTIMATE);
+    complex_input.resize(newsize);
+    memcpy(complex_input.data(), pinput, sizeof(std::complex<float>) * size);
+    p = fftwf_plan_dft_1d(
+        newsize, reinterpret_cast<fftwf_complex *>(complex_input.data()), Ihat,
+        FFTW_FORWARD, FFTW_ESTIMATE);
   } else {
-    input = (float *)malloc(newsize * sizeof(float));
-    memset(input, 0, newsize * sizeof(float));
-    memcpy(input, pinput, sizeof(float) * size);
-    p = fftwf_plan_dft_r2c_1d(newsize, input, Ihat, FFTW_ESTIMATE);
+    real_input.resize(newsize);
+    memcpy(real_input.data(), pinput, sizeof(float) * size);
+    p = fftwf_plan_dft_r2c_1d(newsize, real_input.data(), Ihat, FFTW_ESTIMATE);
   }
 
   fftwf_execute(p);
   fftwf_destroy_plan(p);
-  free(input);
 
   pinv = fftwf_plan_dft_1d(newsize, O1, (fftwf_complex *)poutput, FFTW_BACKWARD,
                            FFTW_ESTIMATE);

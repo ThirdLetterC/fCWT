@@ -48,7 +48,7 @@ set(library_sources
 add_library(${fcwt_library_target} ${library_headers} ${library_sources})
 add_library(fCWT::fCWT ALIAS ${fcwt_library_target})
 
-target_compile_features(${fcwt_library_target} PUBLIC cxx_std_20)
+target_compile_features(${fcwt_library_target} PUBLIC cxx_std_23)
 set_target_properties(${fcwt_library_target}
     PROPERTIES
         VERSION ${PROJECT_VERSION}
@@ -115,55 +115,6 @@ endif()
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(${fcwt_library_target} PRIVATE m)
-endif()
-
-if(BUILD_EXAMPLE)
-    if(EXISTS "${PROJECT_SOURCE_DIR}/src/main.cpp")
-        add_executable(fCWT_example src/main.cpp)
-        target_link_libraries(fCWT_example PRIVATE ${fcwt_library_target})
-    else()
-        message(WARNING "BUILD_EXAMPLE is ON, but src/main.cpp does not exist; skipping fCWT_example.")
-    endif()
-endif()
-
-if(BUILD_BENCHMARK)
-    set(benchmark_sources
-        src/benchmark.cpp
-        src/rwave-bench.cpp
-        src/wavelib-bench.cpp)
-
-    foreach(_benchmark_source IN LISTS benchmark_sources)
-        if(NOT EXISTS "${PROJECT_SOURCE_DIR}/${_benchmark_source}")
-            message(FATAL_ERROR "BUILD_BENCHMARK is ON, but ${_benchmark_source} does not exist.")
-        endif()
-    endforeach()
-
-    add_executable(fCWT_benchmark ${benchmark_sources})
-    target_link_libraries(fCWT_benchmark PRIVATE ${fcwt_library_target})
-
-    find_library(WAVELIB NAMES wavelib libwavelib REQUIRED)
-    message(STATUS "WAVELIB: ${WAVELIB}")
-    target_link_libraries(fCWT_benchmark PRIVATE ${WAVELIB})
-endif()
-
-if(BUILD_MATLAB)
-    find_package(Matlab REQUIRED)
-
-    matlab_add_mex(
-        NAME fCWTmex
-        SRC src/MEX/fcwtmex.cpp
-        OUTPUT_NAME ${FCWT_MATLAB_DIR}/fCWT
-        LINK_TO ${FFTW} ${FFTW_OMP} ${fcwt_library_target}
-        R2018a)
-    set_target_properties(fCWTmex PROPERTIES COMPILE_FLAGS "-g -DSINGLE_THREAD")
-
-    matlab_add_mex(
-        NAME fCWTmexplan
-        SRC src/MEX/fcwtplan.cpp
-        OUTPUT_NAME ${FCWT_MATLAB_DIR}/fCWT_create_plan
-        LINK_TO ${FFTW} ${FFTW_OMP} ${fcwt_library_target}
-        R2018a)
-    set_target_properties(fCWTmexplan PROPERTIES COMPILE_FLAGS "-g -DSINGLE_THREAD")
 endif()
 
 install(FILES ${library_headers}
